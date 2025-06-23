@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pop Counter Webapp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f2f2f2; text-align: center; padding: 40px; }
+    #counter { font-size: 4em; margin: 30px 0; color: #2196f3; }
+    #status { margin: 20px 0 10px 0; color: #333; }
+    button { font-size: 1.2em; padding: 10px 30px; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Pop Counter (Mic)</h1>
+  <div id="status">Click Start and pop your mouth near the mic!</div>
+  <div id="counter">0</div>
+  <button id="start">Start</button>
+  <button id="stop" disabled>Stop</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/fft.js@0.3.0/dist/fft.min.js"></script>
+  <script>
+    let counter = 0;
+    let running = false;
+    let stream, audioCtx, processor;
+    let cooldown = 0;
+    const COOLDOWN_FRAMES = 7;
+    const THRESHOLD = 0.23; // Adjust for sensitivity
+    const counterDiv = document.getElementById('counter');
+    const statusDiv = document.getElementById('status');
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+
+    function updateCounter() {
+      counterDiv.textContent = counter;
+    }
+
+    function setStatus(msg) {
+      statusDiv.textContent = msg;
+    }
+
+    startBtn.onclick = async () => {
+      if (running) return;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaStreamSource(stream);
+        processor = audioCtx.createScriptProcessor(2048, 1, 1);
+        source.connect(processor);
+        processor.connect(audioCtx.destination);
+        setStatus('Listening... Pop your mouth!');
+        running = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        processor.onaudioprocess = (e) => {
+          const input = e.inputBuffer.getChannelData(0);
+          // Simple pop detection: look for sudden large amplitude bursts
+          let max = 0;
+          for (let i = 0; i < input.length; i++) {
+            max = Math.max(max, Math.abs(input[i]));
+          }
+          if (cooldown > 0) cooldown--;
+          if (max > THRESHOLD && cooldown === 0) {
+            counter++;
+            updateCounter();
+            cooldown = COOLDOWN_FRAMES;
+          }
+        };
+      } catch (err) {
+        setStatus('Microphone access denied or not available.');
+      }
+    };
+
+    stopBtn.onclick = () => {
+      if (!running) return;
+      processor.disconnect();
+      audioCtx.close();
+      stream.getTracks().forEach(track => track.stop());
+      setStatus('Stopped.');
+      running = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    };
+  </script>
+</body>
+</html>
