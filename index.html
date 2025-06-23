@@ -5,82 +5,94 @@
   <title>Pop Counter Webapp</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; background: #f2f2f2; text-align: center; padding: 40px; }
-    #counter { font-size: 4em; margin: 30px 0; color: #2196f3; }
-    #status { margin: 20px 0 10px 0; color: #333; }
-    button { font-size: 1.2em; padding: 10px 30px; margin: 10px; }
-  </style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    min-height: 100vh;
+    background: #181A20;
+    color: #F6F7F9;
+    font-family: 'Inter', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0 20px;
+  }
+  h1 {
+    font-weight: 600;
+    letter-spacing: -1px;
+    margin: 0 0 18px 0;
+    font-size: 2.2em;
+    color: #F6F7F9;
+  }
+  #counter {
+    font-size: 5em;
+    font-weight: 600;
+    color: #00E1D2;
+    background: #23242A;
+    border-radius: 18px;
+    box-shadow: 0 4px 24px 0 #00e1d21a;
+    padding: 24px 48px;
+    margin: 32px 0 24px 0;
+    transition: box-shadow 0.2s;
+    width: 2.1em; /* Fixed width for up to 5 digits */
+    text-align: center;
+    display: inline-block;
+  }
+  #counter:active {
+    box-shadow: 0 2px 8px 0 #00e1d21a;
+  }
+  #status {
+    margin: 18px 0 10px 0;
+    color: #AAB2C4;
+    font-size: 1.1em;
+    min-height: 1.5em;
+  }
+  button {
+    font-family: inherit;
+    font-size: 1.12em;
+    font-weight: 600;
+    color: #F6F7F9;
+    background: #23242A;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 38px;
+    margin: 0 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px 0 #00000022;
+    transition: background 0.15s, color 0.15s, box-shadow 0.2s;
+    outline: none;
+  }
+  button:active {
+    background: #181A20;
+    color: #00E1D2;
+    box-shadow: 0 1px 4px 0 #00e1d21a;
+  }
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+</style>
 </head>
 <body>
   <h1>Pop Counter (Mic)</h1>
   <div id="status">Click Start and pop your mouth near the mic!</div>
   <div id="counter">0</div>
-  <button id="start">Start</button>
-  <button id="stop" disabled>Stop</button>
+  <button id="toggle">Start</button>
+
+  <div style="margin:30px 0 10px 0;">
+    <button id="record-ref">Record Reference Pop</button>
+    <span id="rec-status" style="margin-left:16px;color:#FFBC42;"></span>
+  </div>
+  <ul id="ref-list" style="list-style:none;padding:0;margin:0 0 30px 0;"></ul>
 
   <script src="https://cdn.jsdelivr.net/npm/fft.js@0.3.0/dist/fft.min.js"></script>
-  <script>
-    let counter = 0;
-    let running = false;
-    let stream, audioCtx, processor;
-    let cooldown = 0;
-    const COOLDOWN_FRAMES = 7;
-    const THRESHOLD = 0.23; // Adjust for sensitivity
-    const counterDiv = document.getElementById('counter');
-    const statusDiv = document.getElementById('status');
-    const startBtn = document.getElementById('start');
-    const stopBtn = document.getElementById('stop');
-
-    function updateCounter() {
-      counterDiv.textContent = counter;
-    }
-
-    function setStatus(msg) {
-      statusDiv.textContent = msg;
-    }
-
-    startBtn.onclick = async () => {
-      if (running) return;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioCtx.createMediaStreamSource(stream);
-        processor = audioCtx.createScriptProcessor(2048, 1, 1);
-        source.connect(processor);
-        processor.connect(audioCtx.destination);
-        setStatus('Listening... Pop your mouth!');
-        running = true;
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        processor.onaudioprocess = (e) => {
-          const input = e.inputBuffer.getChannelData(0);
-          // Simple pop detection: look for sudden large amplitude bursts
-          let max = 0;
-          for (let i = 0; i < input.length; i++) {
-            max = Math.max(max, Math.abs(input[i]));
-          }
-          if (cooldown > 0) cooldown--;
-          if (max > THRESHOLD && cooldown === 0) {
-            counter++;
-            updateCounter();
-            cooldown = COOLDOWN_FRAMES;
-          }
-        };
-      } catch (err) {
-        setStatus('Microphone access denied or not available.');
-      }
-    };
-
-    stopBtn.onclick = () => {
-      if (!running) return;
-      processor.disconnect();
-      audioCtx.close();
-      stream.getTracks().forEach(track => track.stop());
-      setStatus('Stopped.');
-      running = false;
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    };
-  </script>
+  <script type="module" src="storage.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
+
 </html>
